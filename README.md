@@ -1,43 +1,65 @@
 # HackBrowserData
 
-[中文文档](https://github.com/moonD4rk/HackBrowserData/blob/master/README_ZH.md) 
+![CI](https://github.com/moonD4rk/HackBrowserData/workflows/CI/badge.svg?branch=master) ![Build Hack-Browser-Data Release](https://github.com/moonD4rk/HackBrowserData/workflows/Build%20Hack-Browser-Data%20Release/badge.svg)
 
-hack-browser-data is an open-source tool that could help you decrypt data[passwords|bookmarks|cookies|history] from the browser. It supports the most popular browsers on the market and runs on Windows, macOS and Linux.
+[中文说明](https://github.com/moonD4rk/HackBrowserData/blob/master/README_ZH.md) 
+
+hack-browser-data is an open-source tool that could help you decrypt data ( passwords|bookmarks|cookies|history ) from the browser. It supports the most popular browsers on the market and runs on Windows, macOS and Linux.
+
+> Statement: This tool is limited to security research only, and the user assumes all legal and related responsibilities arising from its use! The author assumes no legal responsibility!
 
 ### Supported Browser
 
 #### Windows
 | Browser                             | Password | Cookie | Bookmark | History |
 | :---------------------------------- | :------: | :----: | :------: | :-----: |
-| Google Chrome (Full Version) |    ✅    |   ✅   |    ✅    |    ✅    |
+| Google Chrome |    ✅    |   ✅   |    ✅    |    ✅    |
+| Google Chrome Beta |    ✅    |   ✅   |    ✅    |    ✅    |
 | Firefox |    ✅    |   ✅   |    ✅    |    ✅    |
 | Microsoft Edge |    ✅    |   ✅   |    ✅    |    ✅    |
 | 360 Speed Browser |    ✅    |   ✅   |    ✅    |    ✅    |
 | QQ Browser |    ✅    |   ✅   |    ✅    |    ✅    |
+| Brave Browser |    ✅    |   ✅   |    ✅    |    ✅    |
+| Opera Browser |    ✅    |    ✅    |    ✅    |    ✅    |
+| OperaGX Browser |    ✅    |    ✅    |    ✅    |    ✅    |
+| Vivaldi Browser |    ✅    |    ✅    |    ✅    |    ✅    |
 | Internet Explorer |    ❌    |   ❌   |    ❌    |    ❌    |
+
 
 #### MacOS
 
-Because of  the security policies, some of the browsers require a password.
+Based on Apple's security policy, some browsers **require a current user password** to decrypt.
 
 | Browser                             | Password | Cookie | Bookmark | History |
 | :---------------------------------- | :------: | :----: | :------: | :-----: |
-| Google Chrome<br />Require Password |    ✅    |   ✅   |    ✅    |    ✅    |
+| Google Chrome |    ✅    |   ✅   |    ✅    |    ✅    |
+| Google Chrome Beta |    ✅    |   ✅   |    ✅    |    ✅    |
 | Firefox |    ✅    |   ✅   |    ✅    |    ✅    |
-| Microsoft Edge<br />Require Password |    ✅    |   ✅   |    ✅    |    ✅    |
+| Microsoft Edge |    ✅    |   ✅   |    ✅    |    ✅    |
+| Brave Browser |    ✅    |   ✅   |    ✅    |    ✅    |
+| Opera Browser |    ✅    |    ✅    |    ✅    |    ✅    |
+| OperaGX Browser |    ✅    |    ✅    |    ✅    |    ✅    |
+| Vivaldi Browser |    ✅    |    ✅    |    ✅    |    ✅    |
 | Safari |    ❌    |   ❌   |    ❌    |    ❌    |
 
 #### Linux
 
 | Browser                             | Password | Cookie | Bookmark | History |
 | :---------------------------------- | :------: | :----: | :------: | :-----: |
-| Firefox |    ✅    |   ✅   |    ✅    |    ✅    |
 | Google Chrome |    ✅    |   ✅   |    ✅    |    ✅    |
+| Google Chrome Beta |    ✅    |   ✅   |    ✅    |    ✅    |
+| Firefox |    ✅    |   ✅   |    ✅    |    ✅    |
+| Microsoft Edge Dev |    ✅    |   ✅   |    ✅    |    ✅    |
+| Brave Browser |    ✅    |   ✅   |    ✅    |    ✅    |
+| Opera Browser |    ✅    |    ✅    |    ✅    |    ✅    |
+| Vivaldi Browser |    ✅    |    ✅    |    ✅    |    ✅    |
 
 
 ### Install
 
 Installation of hack-browser-data is dead-simple, just download [the release for your system](https://github.com/moonD4rk/HackBrowserData/releases) and run the binary.
+
+> In some situations, this security tool will be treated as a virus by Windows Defender or other antivirus software and can not be executed, after version 0.2.6 will use UPX try to simply bypass, then no longer with antivirus software to do unnecessary security confrontations.The code is all open source, you can modify and compile by yourself.
 
 #### Building from source
 
@@ -53,28 +75,49 @@ go get -v -t -d ./...
 go build
 ```
 
-#### Run
+##### Cross compile
+
+Need install target OS's `gcc` library, here's an example of use `Mac` building for `Windows` and `Linux`
+
+**Windows**
 
 ```shell
+brew install mingw-w64
+
+CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC="x86_64-w64-mingw32-gcc" go build
+```
+
+**Linux**
+
+````shell
+brew install FiloSottile/musl-cross/musl-cross
+
+CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ GOARCH=amd64 GOOS=linux CGO_ENABLED=1 go build -ldflags "-linkmode external -extldflags -static"
+````
+
+#### Run
+
+You can double-click to run, or use command line.
+
+```
 PS C:\test> .\hack-browser-data.exe -h
 NAME:
    hack-browser-data - Export passwords/cookies/history/bookmarks from browser
-
 USAGE:
-   [hack-browser-data -b chrome -f json -dir results -e all -cc]
+   [hack-browser-data -b chrome -f json -dir results -cc]
    Get all data(password/cookie/history/bookmark) from chrome
-
+VERSION:
+   0.3.0
 GLOBAL OPTIONS:
    --verbose, --vv                   Verbose (default: false)
    --compress, --cc                  Compress result to zip (default: false)
-   --browser value, -b value         Available browsers: all|chrome|edge|firefox (default: "all")
+   --browser value, -b value         Available browsers: all|edge|firefox|chrome (default: "all")
    --results-dir value, --dir value  Export dir (default: "results")
-   --format value, -f value          Format, csv|json|console (default: "json")
-   --export-data value, -e value     all|password|bookmark|cookie|history (default: "all")
+   --format value, -f value          Format, csv|json|console (default: "csv")
    --help, -h                        show help (default: false)
+   --version, -v                     print the version (default: false)
 
-
-PS C:\test>  .\hack-browser-data.exe -b all -f json -e all --dir results -cc
+PS C:\test>  .\hack-browser-data.exe -b all -f json --dir results -cc
 [x]:  Get 44 cookies, filename is results/microsoft_edge_cookie.json
 [x]:  Get 54 history, filename is results/microsoft_edge_history.json
 [x]:  Get 1 passwords, filename is results/microsoft_edge_password.json
@@ -112,8 +155,6 @@ PS C:\test>  .\hack-browser-data.exe -b all -f json -e all --dir results -cc
 | Chrome | 360 Safe | Firefox | QQ Browser |  IE   | Sogou Explorer |
 | :----- | :------: | :-----: | :--------: | :---: | :------------: |
 | 39.85% |  22.26%  |  9.28%  |    6.5%    | 5.65% |     4.74%      |
-
-  
 
 - [x] Chrome
 - [x] QQ browser

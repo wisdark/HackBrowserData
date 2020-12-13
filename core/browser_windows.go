@@ -3,24 +3,32 @@ package core
 import (
 	"encoding/base64"
 	"errors"
+	"os"
+
 	"hack-browser-data/core/decrypt"
 	"hack-browser-data/utils"
-	"os"
 
 	"github.com/tidwall/gjson"
 )
 
 const (
-	chromeProfilePath    = "/AppData/Local/Google/Chrome/User Data/*/"
-	chromeKeyPath        = "/AppData/Local/Google/Chrome/User Data/Local State"
-	edgeProfilePath      = "/AppData/Local/Microsoft/Edge/User Data/*/"
-	edgeKeyPath          = "/AppData/Local/Microsoft/Edge/User Data/Local State"
-	speed360ProfilePath  = "/AppData/Local/360chrome/Chrome/User Data/*/"
-	speed360KeyPath      = ""
-	qqBrowserProfilePath = "/AppData/Local/Tencent/QQBrowser/User Data/*/"
-	qqBrowserKeyPath     = ""
-	firefoxProfilePath   = "/AppData/Roaming/Mozilla/Firefox/Profiles/*.default-release/"
-	firefoxKeyPath       = ""
+	chromeProfilePath     = "/AppData/Local/Google/Chrome/User Data/*/"
+	chromeKeyPath         = "/AppData/Local/Google/Chrome/User Data/Local State"
+	chromeBetaProfilePath = "/AppData/Local/Google/Chrome Beta/User Data/*/"
+	chromeBetaKeyPath     = "/AppData/Local/Google/Chrome Beta/User Data/Local State"
+	edgeProfilePath       = "/AppData/Local/Microsoft/Edge/User Data/*/"
+	edgeKeyPath           = "/AppData/Local/Microsoft/Edge/User Data/Local State"
+	braveProfilePath      = "/AppData/Local/BraveSoftware/Brave-Browser/User Data/*/"
+	braveKeyPath          = "/AppData/Local/BraveSoftware/Brave-Browser/User Data/Local State"
+	speed360ProfilePath   = "/AppData/Local/360chrome/Chrome/User Data/*/"
+	qqBrowserProfilePath  = "/AppData/Local/Tencent/QQBrowser/User Data/*/"
+	firefoxProfilePath    = "/AppData/Roaming/Mozilla/Firefox/Profiles/*.default-release/"
+	operaProfilePath      = "/AppData/Roaming/Opera Software/Opera Stable/"
+	operaKeyPath          = "/AppData/Roaming/Opera Software/Opera Stable/Local State"
+	operaGXProfilePath    = "/AppData/Roaming/Opera Software/Opera GX Stable/"
+	operaGXKeyPath        = "/AppData/Roaming/Opera Software/Opera GX Stable/Local State"
+	vivaldiProfilePath    = "/AppData/Local/Vivaldi/User Data/Default/"
+	vivaldiKeyPath        = "/AppData/Local/Vivaldi/Local State"
 )
 
 var (
@@ -28,12 +36,19 @@ var (
 		ProfilePath string
 		Name        string
 		KeyPath     string
-		New         func(profile, key, name string) (Browser, error)
+		Storage     string
+		New         func(profile, key, name, storage string) (Browser, error)
 	}{
 		"chrome": {
 			ProfilePath: os.Getenv("USERPROFILE") + chromeProfilePath,
 			KeyPath:     os.Getenv("USERPROFILE") + chromeKeyPath,
 			Name:        chromeName,
+			New:         NewChromium,
+		},
+		"chrome-beta": {
+			ProfilePath: os.Getenv("USERPROFILE") + chromeBetaProfilePath,
+			KeyPath:     os.Getenv("USERPROFILE") + chromeBetaKeyPath,
+			Name:        chromeBetaName,
 			New:         NewChromium,
 		},
 		"edge": {
@@ -57,6 +72,30 @@ var (
 			Name:        firefoxName,
 			New:         NewFirefox,
 		},
+		"brave": {
+			ProfilePath: os.Getenv("USERPROFILE") + braveProfilePath,
+			KeyPath:     os.Getenv("USERPROFILE") + braveKeyPath,
+			Name:        braveName,
+			New:         NewChromium,
+		},
+		"opera": {
+			ProfilePath: os.Getenv("USERPROFILE") + operaProfilePath,
+			KeyPath:     os.Getenv("USERPROFILE") + operaKeyPath,
+			Name:        operaName,
+			New:         NewChromium,
+		},
+		"opera-gx": {
+			ProfilePath: os.Getenv("USERPROFILE") + operaGXProfilePath,
+			KeyPath:     os.Getenv("USERPROFILE") + operaGXKeyPath,
+			Name:        operaGXName,
+			New:         NewChromium,
+		},
+		"vivaldi": {
+			ProfilePath: os.Getenv("USERPROFILE") + vivaldiProfilePath,
+			KeyPath:     os.Getenv("USERPROFILE") + vivaldiKeyPath,
+			Name:        vivaldiName,
+			New:         NewChromium,
+		},
 	}
 )
 
@@ -64,6 +103,8 @@ var (
 	errBase64DecodeFailed = errors.New("decode base64 failed")
 )
 
+// InitSecretKey on windows with win32 DPAPI
+// conference from @https://gist.github.com/akamajoris/ed2f14d817d5514e7548
 func (c *Chromium) InitSecretKey() error {
 	if c.keyPath == "" {
 		return nil

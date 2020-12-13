@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/asn1"
 	"encoding/hex"
+
 	"hack-browser-data/log"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -40,7 +41,6 @@ SEQUENCE (2 elem)
 			INTEGER 1
 	OCTET STRING (16 byte)
 */
-
 type MetaPBE struct {
 	SequenceA
 	Encrypted []byte
@@ -101,7 +101,6 @@ func DecodeMeta(decodeItem []byte) (pbe MetaPBE, err error) {
 }
 
 func DecodeNss(nssA11Bytes []byte) (pbe NssPBE, err error) {
-	log.Debug(hex.EncodeToString(nssA11Bytes))
 	_, err = asn1.Unmarshal(nssA11Bytes, &pbe)
 	if err != nil {
 		log.Error(err)
@@ -119,16 +118,16 @@ func Nss(globalSalt, masterPwd []byte, pbe NssPBE) ([]byte, error) {
 }
 
 func decryptMeta(globalSalt, masterPwd, entrySalt, encrypted []byte) ([]byte, error) {
-	//byte[] GLMP; // GlobalSalt + MasterPassword
-	//byte[] HP; // SHA1(GLMP)
-	//byte[] HPES; // HP + EntrySalt
-	//byte[] CHP; // SHA1(HPES)
-	//byte[] PES; // EntrySalt completed to 20 bytes by zero
-	//byte[] PESES; // PES + EntrySalt
-	//byte[] k1;
-	//byte[] tk;
-	//byte[] k2;
-	//byte[] k; // final value conytaining key and iv
+	// byte[] GLMP; // GlobalSalt + MasterPassword
+	// byte[] HP; // SHA1(GLMP)
+	// byte[] HPES; // HP + EntrySalt
+	// byte[] CHP; // SHA1(HPES)
+	// byte[] PES; // EntrySalt completed to 20 bytes by zero
+	// byte[] PESES; // PES + EntrySalt
+	// byte[] k1;
+	// byte[] tk;
+	// byte[] k2;
+	// byte[] k; // final value conytaining key and iv
 	glmp := append(globalSalt, masterPwd...)
 	hp := sha1.Sum(glmp)
 	s := append(hp[:], entrySalt...)

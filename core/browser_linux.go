@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/sha1"
+
 	"hack-browser-data/log"
 
 	"github.com/godbus/dbus/v5"
@@ -10,8 +11,22 @@ import (
 )
 
 const (
-	fireFoxProfilePath = "/home/*/.mozilla/firefox/*.default-release/"
-	chromeProfilePath  = "/home/*/.config/google-chrome/*/"
+	fireFoxProfilePath    = "/home/*/.mozilla/firefox/*.default-release/"
+	chromeProfilePath     = "/home/*/.config/google-chrome/*/"
+	edgeProfilePath       = "/home/*/.config/microsoft-edge*/*/"
+	braveProfilePath      = "/home/*/.config/BraveSoftware/Brave-Browser/*/"
+	chromeBetaProfilePath = "/home/*/.config/google-chrome-beta/*/"
+	operaProfilePath      = "/home/*/.config/opera/"
+	vivaldiProfilePath    = "/home/*/.config/vivaldi/*/"
+)
+
+const (
+	chromeStorageName     = "Chrome Safe Storage"
+	edgeStorageName       = "Chromium Safe Storage"
+	braveStorageName      = "Brave Safe Storage"
+	chromeBetaStorageName = "Chrome Safe Storage"
+	operaStorageName      = "Chromium Safe Storage"
+	vivaldiStorageName    = "Chrome Safe Storage"
 )
 
 var (
@@ -19,7 +34,8 @@ var (
 		ProfilePath string
 		Name        string
 		KeyPath     string
-		New         func(profile, key, name string) (Browser, error)
+		Storage     string
+		New         func(profile, key, name, storage string) (Browser, error)
 	}{
 		"firefox": {
 			ProfilePath: fireFoxProfilePath,
@@ -29,13 +45,44 @@ var (
 		"chrome": {
 			ProfilePath: chromeProfilePath,
 			Name:        chromeName,
+			Storage:     chromeStorageName,
+			New:         NewChromium,
+		},
+		"edge": {
+			ProfilePath: edgeProfilePath,
+			Name:        edgeName,
+			Storage:     edgeStorageName,
+			New:         NewChromium,
+		},
+		"brave": {
+			ProfilePath: braveProfilePath,
+			Name:        braveName,
+			Storage:     braveStorageName,
+			New:         NewChromium,
+		},
+		"chrome-beta": {
+			ProfilePath: chromeBetaProfilePath,
+			Name:        chromeBetaName,
+			Storage:     chromeBetaStorageName,
+			New:         NewChromium,
+		},
+		"opera": {
+			ProfilePath: operaProfilePath,
+			Name:        operaName,
+			Storage:     operaStorageName,
+			New:         NewChromium,
+		},
+		"vivaldi": {
+			ProfilePath: vivaldiProfilePath,
+			Name:        vivaldiName,
+			Storage:     vivaldiStorageName,
 			New:         NewChromium,
 		},
 	}
 )
 
 func (c *Chromium) InitSecretKey() error {
-	//what is d-bus @https://dbus.freedesktop.org/
+	// what is d-bus @https://dbus.freedesktop.org/
 	var chromeSecret []byte
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -62,24 +109,25 @@ func (c *Chromium) InitSecretKey() error {
 			return err
 		}
 		for _, item := range items {
-			i, err := item.GetLabel()
+			label, err := item.GetLabel()
 			if err != nil {
 				log.Error(err)
 				continue
 			}
-			if i == "Chrome Safe Storage" {
+			if label == c.storage {
 				se, err := item.GetSecret(session.Path())
 				if err != nil {
+					log.Error(err)
 					return err
 				}
 				chromeSecret = se.Value
 			}
 		}
 	}
-	var chromeSalt = []byte("saltysalt")
 	if chromeSecret == nil {
 		return errDbusSecretIsEmpty
 	}
+	var chromeSalt = []byte("saltysalt")
 	// @https://source.chromium.org/chromium/chromium/src/+/master:components/os_crypt/os_crypt_linux.cc
 	key := pbkdf2.Key(chromeSecret, chromeSalt, 1, 16, sha1.New)
 	c.secretKey = key

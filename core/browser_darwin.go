@@ -10,9 +10,23 @@ import (
 )
 
 const (
-	chromeProfilePath  = "/Users/*/Library/Application Support/Google/Chrome/*/"
-	edgeProfilePath    = "/Users/*/Library/Application Support/Microsoft Edge/*/"
-	fireFoxProfilePath = "/Users/*/Library/Application Support/Firefox/Profiles/*.default-release/"
+	chromeProfilePath     = "/Users/*/Library/Application Support/Google/Chrome/*/"
+	chromeBetaProfilePath = "/Users/*/Library/Application Support/Google/Chrome Beta/*/"
+	edgeProfilePath       = "/Users/*/Library/Application Support/Microsoft Edge/*/"
+	fireFoxProfilePath    = "/Users/*/Library/Application Support/Firefox/Profiles/*.default-release/"
+	braveProfilePath      = "/Users/*/Library/Application Support/BraveSoftware/Brave-Browser/*/"
+	operaProfilePath      = "/Users/*/Library/Application Support/com.operasoftware.Opera/"
+	operaGXProfilePath    = "/Users/*/Library/Application Support/com.operasoftware.OperaGX/"
+	vivaldiProfilePath    = "/Users/*/Library/Application Support/Vivaldi/*/"
+)
+
+const (
+	chromeStorageName     = "Chrome"
+	chromeBetaStorageName = "Chrome"
+	edgeStorageName       = "Microsoft Edge"
+	braveStorageName      = "Brave"
+	operaStorageName      = "Opera"
+	vivaldiStorageName    = "Vivaldi"
 )
 
 var (
@@ -20,22 +34,55 @@ var (
 		ProfilePath string
 		Name        string
 		KeyPath     string
-		New         func(profile, key, name string) (Browser, error)
+		Storage     string
+		New         func(profile, key, name, storage string) (Browser, error)
 	}{
+		"firefox": {
+			ProfilePath: fireFoxProfilePath,
+			Name:        firefoxName,
+			New:         NewFirefox,
+		},
 		"chrome": {
 			ProfilePath: chromeProfilePath,
 			Name:        chromeName,
+			Storage:     chromeStorageName,
 			New:         NewChromium,
 		},
 		"edge": {
 			ProfilePath: edgeProfilePath,
 			Name:        edgeName,
+			Storage:     edgeStorageName,
 			New:         NewChromium,
 		},
-		"firefox": {
-			ProfilePath: fireFoxProfilePath,
-			Name:        firefoxName,
-			New:         NewFirefox,
+		"brave": {
+			ProfilePath: braveProfilePath,
+			Name:        braveName,
+			Storage:     braveStorageName,
+			New:         NewChromium,
+		},
+		"chrome-beta": {
+			ProfilePath: chromeBetaProfilePath,
+			Name:        chromeBetaName,
+			Storage:     chromeBetaStorageName,
+			New:         NewChromium,
+		},
+		"opera": {
+			ProfilePath: operaProfilePath,
+			Name:        operaName,
+			Storage:     operaStorageName,
+			New:         NewChromium,
+		},
+		"opera-gx": {
+			ProfilePath: operaGXProfilePath,
+			Name:        operaGXName,
+			Storage:     operaStorageName,
+			New:         NewChromium,
+		},
+		"vivaldi": {
+			ProfilePath: vivaldiProfilePath,
+			Name:        vivaldiName,
+			Storage:     vivaldiStorageName,
+			New:         NewChromium,
 		},
 	}
 )
@@ -45,8 +92,8 @@ func (c *Chromium) InitSecretKey() error {
 		cmd            *exec.Cmd
 		stdout, stderr bytes.Buffer
 	)
-	//➜ security find-generic-password -wa 'Chrome'
-	cmd = exec.Command("security", "find-generic-password", "-wa", c.name)
+	// ➜ security find-generic-password -wa 'Chrome'
+	cmd = exec.Command("security", "find-generic-password", "-wa", c.storage)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
